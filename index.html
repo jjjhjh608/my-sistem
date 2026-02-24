@@ -3,185 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת ניהול - Super Admin</title>
+    <title>מערכת ניהול חכמה</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // הגדרת צבעים מותאמים אישית ב-Tailwind
+        tailwind.config = {
+            theme: {
+                extend: { colors: { primary: '#3b82f6', secondary: '#1e293b', accent: '#0ea5e9' } }
+            }
+        }
+    </script>
+    
     <style>
-        :root { --primary: #2563eb; --danger: #dc2626; --success: #16a34a; --bg: #f8fafc; --card: #ffffff; }
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg); margin: 0; padding: 20px; color: #334155; }
-        .container { max-width: 900px; margin: 20px auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1, h2, h3 { color: #0f172a; text-align: center; }
-        
-        .form-group { margin-bottom: 15px; text-align: right; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="email"], input[type="password"] {
-            width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 16px;
-        }
-        
-        button {
-            width: 100%; padding: 12px; background: var(--primary); color: white; border: none;
-            border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        .btn-danger { background: var(--danger); }
-        .btn-success { background: var(--success); }
-        .btn-small { width: auto; padding: 6px 12px; font-size: 14px; margin: 2px; }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
-        
-        .card { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
-        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; color: white; }
-        .active { background: var(--success); }
-        .blocked { background: var(--danger); }
-
-        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .checkbox-item { background: white; padding: 5px 10px; border-radius: 20px; border: 1px solid #ccc; font-size: 14px;}
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; }
-        th { background: #e2e8f0; }
-
-        .hidden { display: none !important; }
-        .msg { text-align: center; margin-top: 10px; font-weight: bold; }
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;800&display=swap');
+        body { font-family: 'Heebo', sans-serif; background-color: #f1f5f9; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* עיצוב פס גלילה */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body>
+<body class="text-slate-800">
 
-    <div class="container" id="login-screen">
-        <h1>כניסה למערכת</h1>
-        <div class="form-group"><input type="email" id="email" placeholder="אימייל"></div>
-        <div class="form-group"><input type="password" id="password" placeholder="סיסמה"></div>
-        <button onclick="login()">התחבר</button>
-        <button onclick="showForgotPassword()" style="background: transparent; color: var(--primary); margin-top: 10px; box-shadow: none;">שכחת סיסמה?</button>
-        <div id="login-msg" class="msg"></div>
-    </div>
-
-    <div class="container hidden" id="forgot-password-screen">
-        <h2>שחזור סיסמה</h2>
-        <p>הכנס את האימייל שלך ונשלח לך קישור לאיפוס הסיסמה.</p>
-        <div class="form-group"><input type="email" id="reset-email" placeholder="אימייל"></div>
-        <button onclick="sendResetLink()">שלח קישור</button>
-        <button onclick="window.location.reload()" style="background: #64748b; margin-top: 10px;">חזור להתחברות</button>
-        <div id="reset-msg" class="msg"></div>
-    </div>
-
-    <div class="container hidden" id="update-password-screen">
-        <h2>עדכון סיסמה חדשה</h2>
-        <div class="form-group"><input type="password" id="new-password" placeholder="סיסמה חדשה (מינימום 6 תווים)"></div>
-        <button onclick="updateNewPassword()">שמור סיסמה והיכנס</button>
-        <div id="update-msg" class="msg"></div>
-    </div>
-
-    <div class="container hidden" id="admin-dashboard">
-        <h1>דשבורד שליטה - Super Admin</h1>
-        <button class="btn-danger btn-small" onclick="logout()" style="float: left;">התנתק</button>
-        <div style="clear: both;"></div>
-        
-        <div class="card">
-            <h3>פתיחת פרויקט חדש ללקוח</h3>
-            <div class="grid">
-                <input type="text" id="new-proj-name" placeholder="שם העסק (למשל: מכולת דוד)">
-                <input type="email" id="new-proj-email" placeholder="אימייל של הלקוח">
-            </div>
-            
-            <label style="margin-top: 15px;">בחר אילו שדות הלקוח יצטרך למלא (בנה לו את המערכת):</label>
-            <div class="checkbox-group" id="fields-checkboxes">
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-slate-800 p-4 fade-in">
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+                    <i class="fas fa-rocket"></i>
                 </div>
-            
-            <button onclick="createProject()" style="margin-top: 15px;">צור פרויקט ושייך ללקוח</button>
-            <div id="admin-msg" class="msg"></div>
-        </div>
+                <h1 class="text-3xl font-extrabold text-slate-800">ברוכים הבאים</h1>
+                <p class="text-slate-500 mt-2">התחבר או הירשם כדי לגשת לאזור האישי</p>
+            </div>
 
-        <h3>ניהול פרויקטים פעילים</h3>
-        <div id="admin-projects-list">טוען...</div>
-        
-        <div id="admin-view-client-data" class="card hidden" style="border: 2px solid var(--primary);">
-            <h3 id="view-data-title">נתוני לקוח</h3>
-            <div id="view-data-table-container"></div>
-            <button onclick="document.getElementById('admin-view-client-data').classList.add('hidden')" style="background: #64748b; margin-top: 15px;">סגור צפייה</button>
+            <div class="flex border-b mb-6">
+                <button onclick="switchAuthTab('login')" id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">התחברות</button>
+                <button onclick="switchAuthTab('register')" id="tab-register" class="flex-1 py-2 font-bold text-slate-400 hover:text-slate-600">הרשמה ללקוח חדש</button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-slate-600">אימייל</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute right-3 top-3.5 text-slate-400"></i>
+                        <input type="email" id="auth-email" class="w-full pl-3 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="name@example.com">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-slate-600">סיסמה</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute right-3 top-3.5 text-slate-400"></i>
+                        <input type="password" id="auth-password" class="w-full pl-3 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <button id="auth-btn" onclick="handleAuth()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 mt-6">
+                    היכנס למערכת
+                </button>
+                
+                <div class="text-center mt-4">
+                    <button onclick="forgotPassword()" class="text-sm text-blue-500 hover:underline">שכחת סיסמה?</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="container hidden" id="client-dashboard">
-        <h1 id="client-title">האזור האישי</h1>
-        <button class="btn-danger btn-small" onclick="logout()" style="float: left;">התנתק</button>
-        <div style="clear: both;"></div>
-
-        <div id="client-content">
-            <div id="client-blocked-msg" class="card hidden" style="background: #fef2f2; color: #dc2626; border-color: #dc2626; text-align: center;">
-                <h2>החשבון שלך נחסם!</h2>
-                <p>פנה למנהל המערכת לבירור.</p>
+    <div id="app-screen" class="hidden flex h-screen overflow-hidden bg-slate-50">
+        
+        <aside class="w-64 bg-secondary text-white flex flex-col shadow-xl z-20 hidden md:flex">
+            <div class="p-6 text-center border-b border-slate-700">
+                <div class="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-2xl mx-auto mb-2"><i class="fas fa-cube text-blue-400"></i></div>
+                <h2 class="font-bold text-xl tracking-wide">MySystem</h2>
+                <p id="user-role-display" class="text-xs text-slate-400 mt-1"></p>
             </div>
+            <nav class="flex-1 p-4 space-y-2" id="sidebar-nav">
+                </nav>
+            <div class="p-4 border-t border-slate-700">
+                <button onclick="logout()" class="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white py-2 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt"></i> התנתק
+                </button>
+            </div>
+        </aside>
 
-            <div id="client-active-section" class="hidden">
-                <div class="card" style="background: #f0fdf4; border-color: #86efac;">
-                    <h3>הזנת נתונים חדשים</h3>
-                    <p>מלא את הפרטים הבאים (הוגדר עבורך על ידי האדמין):</p>
-                    <div id="dynamic-form-container"></div>
-                    <button onclick="clientSubmitData()" style="margin-top: 15px;" class="btn-success">שמור נתונים</button>
-                    <div id="client-msg" class="msg"></div>
+        <main class="flex-1 flex flex-col overflow-y-auto relative">
+            <header class="md:hidden bg-secondary text-white p-4 flex justify-between items-center shadow-md">
+                <h2 class="font-bold"><i class="fas fa-cube mr-2"></i> MySystem</h2>
+                <button onclick="logout()" class="text-red-400"><i class="fas fa-sign-out-alt"></i> יציאה</button>
+            </header>
+
+            <div class="p-6 md:p-10 max-w-7xl mx-auto w-full fade-in" id="main-content">
                 </div>
-
-                <h3>הנתונים שהזנת:</h3>
-                <div id="client-table-container"></div>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script>
+        // חיבור ל-Supabase
         const SUPABASE_URL = 'https://bagbjuedojksrvohuslb.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_wIbF1331Xf-tjvg1C6TvKg_EvTzEVqh';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const ADMIN_EMAIL = 'admin@system.com';
+        const AVAILABLE_FIELDS = ["שם מוצר", "מחיר קנייה", "מחיר מכירה", "מע\"מ", "ספק", "כמות במלאי", "ברקוד", "שם לקוח", "טלפון"];
 
-        // רשימת השדות האפשריים שהאדמין יכול לבחור
-        const AVAILABLE_FIELDS = ["שם מוצר", "מחיר קנייה", "מחיר מכירה", "מע\"מ", "ספק", "כמות במלאי", "ברקוד", "הערות", "שם לקוח", "טלפון"];
-        
-        let currentClientProject = null; // ישמור את הפרויקט של הלקוח המחובר
+        let isLoginMode = true;
+        let currentUser = null;
+        let currentClientProject = null;
 
-        // ----------------------------------------------------
-        // 1. אתחול ובדיקת מצב התחברות / שחזור סיסמה
-        // ----------------------------------------------------
+        // --- אתחול המערכת ---
         window.onload = async () => {
-            renderAdminCheckboxes();
-
-            // האם חזרנו מהמייל עם בקשה לאיפוס סיסמה?
-            if (window.location.hash.includes('type=recovery')) {
-                hideAllScreens();
-                document.getElementById('update-password-screen').classList.remove('hidden');
-                return;
-            }
-
-            // האם המשתמש כבר מחובר?
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                checkRole(session.user);
-            }
+            if (session) { checkRole(session.user); }
         };
 
-        function hideAllScreens() {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('forgot-password-screen').classList.add('hidden');
-            document.getElementById('update-password-screen').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.add('hidden');
-            document.getElementById('client-dashboard').classList.add('hidden');
+        // --- ניהול התחברות / הרשמה ---
+        function switchAuthTab(mode) {
+            isLoginMode = mode === 'login';
+            document.getElementById('tab-login').className = isLoginMode ? 'flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600 transition' : 'flex-1 py-2 font-bold text-slate-400 hover:text-slate-600 transition';
+            document.getElementById('tab-register').className = !isLoginMode ? 'flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600 transition' : 'flex-1 py-2 font-bold text-slate-400 hover:text-slate-600 transition';
+            document.getElementById('auth-btn').innerText = isLoginMode ? 'היכנס למערכת' : 'צור חשבון חדש';
         }
 
-        // ----------------------------------------------------
-        // 2. מערכת משתמשים (Auth)
-        // ----------------------------------------------------
-        async function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msg = document.getElementById('login-msg');
-            msg.innerText = "מתחבר..."; msg.style.color = "blue";
+        async function handleAuth() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if (!email || password.length < 6) return Swal.fire('שגיאה', 'יש להזין אימייל תקין וסיסמה בת 6 תווים לפחות', 'warning');
 
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { msg.innerText = "שגיאה: פרטים שגויים."; msg.style.color = "red"; return; }
-            
-            msg.innerText = "";
-            checkRole(data.user);
+            Swal.fire({ title: isLoginMode ? 'מתחבר...' : 'יוצר חשבון...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            let authResponse;
+            if (isLoginMode) {
+                authResponse = await supabaseClient.auth.signInWithPassword({ email, password });
+            } else {
+                authResponse = await supabaseClient.auth.signUp({ email, password });
+            }
+
+            if (authResponse.error) {
+                Swal.fire('שגיאה', isLoginMode ? 'פרטים שגויים' : 'ההרשמה נכשלה. אולי המייל כבר קיים?', 'error');
+            } else {
+                Swal.close();
+                checkRole(authResponse.data.user);
+            }
+        }
+
+        async function forgotPassword() {
+            const { value: email } = await Swal.fire({
+                title: 'איפוס סיסמה', input: 'email', inputLabel: 'הכנס את כתובת האימייל שלך',
+                inputPlaceholder: 'name@example.com', showCancelButton: true, confirmButtonText: 'שלח', cancelButtonText: 'ביטול'
+            });
+            if (email) {
+                await supabaseClient.auth.resetPasswordForEmail(email);
+                Swal.fire('נשלח!', 'אם המייל קיים במערכת (וההגדרות ב-Supabase תקינות), תקבל קישור לאיפוס.', 'success');
+            }
         }
 
         async function logout() {
@@ -189,86 +169,82 @@
             window.location.reload();
         }
 
-        function showForgotPassword() {
-            hideAllScreens();
-            document.getElementById('forgot-password-screen').classList.remove('hidden');
-        }
-
-        async function sendResetLink() {
-            const email = document.getElementById('reset-email').value;
-            const msg = document.getElementById('reset-msg');
-            msg.innerText = "שולח..."; msg.style.color = "blue";
-            
-            const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email);
-            if (error) { msg.innerText = "שגיאה בשליחה: " + error.message; msg.style.color = "red"; } 
-            else { msg.innerText = "נשלח! בדוק את תיבת הדואר הנכנס (או הספאם) שלך."; msg.style.color = "green"; }
-        }
-
-        async function updateNewPassword() {
-            const newPassword = document.getElementById('new-password').value;
-            const msg = document.getElementById('update-msg');
-            
-            const { data, error } = await supabaseClient.auth.updateUser({ password: newPassword });
-            if (error) { msg.innerText = "שגיאה: " + error.message; msg.style.color = "red"; } 
-            else {
-                msg.innerText = "הסיסמה עודכנה בהצלחה! מעביר אותך פנימה..."; msg.style.color = "green";
-                setTimeout(() => { window.location.hash = ''; window.location.reload(); }, 2000);
-            }
-        }
-
+        // --- ניתוב לפי הרשאה ---
         function checkRole(user) {
-            hideAllScreens();
+            currentUser = user;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+
             if (user.email === ADMIN_EMAIL) {
-                document.getElementById('admin-dashboard').classList.remove('hidden');
-                adminLoadProjects();
+                document.getElementById('user-role-display').innerText = 'מנהל מערכת ראשי (Admin)';
+                buildAdminSidebar();
+                renderAdminDashboard();
             } else {
-                document.getElementById('client-dashboard').classList.remove('hidden');
-                clientLoadData(user.email);
+                document.getElementById('user-role-display').innerText = `לקוח מחובר: ${user.email}`;
+                buildClientSidebar();
+                renderClientDashboard(user.email);
             }
         }
 
-        // ----------------------------------------------------
-        // 3. פאנל סופר אדמין
-        // ----------------------------------------------------
-        function renderAdminCheckboxes() {
-            const container = document.getElementById('fields-checkboxes');
-            container.innerHTML = AVAILABLE_FIELDS.map(field => `
-                <label class="checkbox-item">
-                    <input type="checkbox" value="${field}" class="admin-field-cb"> ${field}
-                </label>
-            `).join('');
+        // ==========================================
+        // מסכי אדמין (SUPER ADMIN)
+        // ==========================================
+        function buildAdminSidebar() {
+            document.getElementById('sidebar-nav').innerHTML = `
+                <button onclick="renderAdminDashboard()" class="w-full text-right px-4 py-3 rounded-lg bg-blue-600 text-white font-medium flex items-center gap-3"><i class="fas fa-home"></i> ראשי</button>
+            `;
         }
 
-        async function createProject() {
+        async function renderAdminDashboard() {
+            const main = document.getElementById('main-content');
+            
+            // יצירת טופס פרויקט חדש + אזור רשימת פרויקטים
+            main.innerHTML = `
+                <h1 class="text-2xl font-bold text-slate-800 mb-6">לוח בקרה מרכזי</h1>
+                
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-plus-circle text-blue-500"></i> פתיחת פרויקט ללקוח חדש</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm text-slate-500 mb-1">שם העסק / פרויקט</label>
+                            <input type="text" id="new-proj-name" class="w-full p-2 border rounded-lg bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-slate-500 mb-1">אימייל של הלקוח (דרכו יבצע הרשמה)</label>
+                            <input type="email" id="new-proj-email" class="w-full p-2 border rounded-lg bg-slate-50">
+                        </div>
+                    </div>
+                    
+                    <label class="block text-sm text-slate-500 mb-2 mt-4">בחר שדות לטופס של הלקוח:</label>
+                    <div class="flex flex-wrap gap-2 mb-4" id="admin-fields">
+                        ${AVAILABLE_FIELDS.map(f => `<label class="bg-slate-100 px-3 py-1.5 rounded-full border cursor-pointer hover:bg-slate-200 transition text-sm"><input type="checkbox" value="${f}" class="mr-2 cb-field"> ${f}</label>`).join('')}
+                    </div>
+                    
+                    <button onclick="adminCreateProject()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow transition"><i class="fas fa-save mr-2"></i> צור פרויקט</button>
+                </div>
+
+                <h2 class="text-xl font-bold mb-4">ניהול לקוחות פעילים</h2>
+                <div id="admin-projects-list" class="grid grid-cols-1 gap-4">טוען נתונים...</div>
+            `;
+            
+            adminLoadProjects();
+        }
+
+        async function adminCreateProject() {
             const name = document.getElementById('new-proj-name').value;
             const email = document.getElementById('new-proj-email').value;
-            const msg = document.getElementById('admin-msg');
-            
-            // איסוף השדות שהאדמין סימן
-            const checkboxes = document.querySelectorAll('.admin-field-cb:checked');
+            const checkboxes = document.querySelectorAll('.cb-field:checked');
             const selectedFields = Array.from(checkboxes).map(cb => cb.value);
 
-            if (!name || !email || selectedFields.length === 0) {
-                msg.innerText = "חובה למלא הכל ולבחור לפחות שדה אחד."; msg.style.color = "red"; return;
-            }
+            if (!name || !email || selectedFields.length === 0) return Swal.fire('שגיאה', 'יש למלא שם, אימייל ולבחור לפחות שדה אחד', 'warning');
 
-            msg.innerText = "יוצר פרויקט..."; msg.style.color = "blue";
+            const { error } = await supabaseClient.from('projects').insert([{ project_name: name, client_email: email, fields: selectedFields, status: 'active' }]);
             
-            // שמירת הפרויקט למסד הנתונים
-            const { error } = await supabaseClient.from('projects').insert([{ 
-                project_name: name, 
-                client_email: email,
-                fields: selectedFields,
-                status: 'active'
-            }]);
-
-            if (error) { msg.innerText = "שגיאה: " + error.message; msg.style.color = "red"; } 
+            if (error) { Swal.fire('שגיאה במסד הנתונים', error.message, 'error'); } 
             else {
-                msg.innerText = "פרויקט נוצר בהצלחה!"; msg.style.color = "green";
-                document.getElementById('new-proj-name').value = '';
-                document.getElementById('new-proj-email').value = '';
-                checkboxes.forEach(cb => cb.checked = false);
-                adminLoadProjects();
+                Swal.fire({ icon: 'success', title: 'הפרויקט נפתח!', text: 'כעת הלקוח צריך להירשם עם המייל הזה.', timer: 2000, showConfirmButton: false });
+                renderAdminDashboard(); // רענון הדף
             }
         }
 
@@ -276,139 +252,150 @@
             const { data, error } = await supabaseClient.from('projects').select('*').order('id', { ascending: false });
             const list = document.getElementById('admin-projects-list');
             
-            if (!data || data.length === 0) { list.innerHTML = "<p>אין פרויקטים.</p>"; return; }
+            if (!data || data.length === 0) { list.innerHTML = "<div class="bg-white p-6 rounded-xl border text-center text-slate-500">אין פרויקטים במערכת.</div>"; return; }
 
             list.innerHTML = data.map(p => `
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong>${p.project_name}</strong> (${p.client_email}) <br>
-                            <span class="status-badge ${p.status === 'active' ? 'active' : 'blocked'}">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-center gap-4 transition hover:shadow-md">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <h3 class="font-bold text-lg text-slate-800">${p.project_name}</h3>
+                            <span class="px-2 py-1 rounded-full text-xs font-bold ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
                                 ${p.status === 'active' ? 'פעיל' : 'חסום'}
-                            </span><br>
-                            <small>שדות מוגדרים: ${p.fields.join(', ')}</small>
+                            </span>
                         </div>
-                        <div>
-                            <button class="btn-small btn-success" onclick="adminViewClientData(${p.id}, '${p.project_name}')">הצג נתונים בלייב</button>
-                            ${p.status === 'active' 
-                                ? `<button class="btn-small btn-danger" onclick="adminToggleStatus(${p.id}, 'blocked')">חסום לקוח</button>`
-                                : `<button class="btn-small" style="background:#64748b;" onclick="adminToggleStatus(${p.id}, 'active')">שחרר חסימה</button>`
-                            }
-                        </div>
+                        <p class="text-slate-500 text-sm"><i class="fas fa-envelope ml-1"></i> ${p.client_email}</p>
+                        <p class="text-slate-400 text-xs mt-2">שדות: ${p.fields.join(', ')}</p>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="adminViewData(${p.id}, '${p.project_name}')" class="flex-1 md:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition"><i class="fas fa-eye mr-1"></i> צפה בנתונים</button>
+                        ${p.status === 'active' 
+                            ? `<button onclick="adminToggleStatus(${p.id}, 'blocked')" class="flex-1 md:flex-none bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-medium transition"><i class="fas fa-ban mr-1"></i> חסום</button>`
+                            : `<button onclick="adminToggleStatus(${p.id}, 'active')" class="flex-1 md:flex-none bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 px-4 py-2 rounded-lg text-sm font-medium transition"><i class="fas fa-check mr-1"></i> שחרר חסימה</button>`
+                        }
                     </div>
                 </div>
             `).join('');
         }
 
-        async function adminToggleStatus(projectId, newStatus) {
-            await supabaseClient.from('projects').update({ status: newStatus }).eq('id', projectId);
-            adminLoadProjects(); // רענון רשימה
+        async function adminToggleStatus(id, status) {
+            await supabaseClient.from('projects').update({ status }).eq('id', id);
+            adminLoadProjects();
         }
 
-        async function adminViewClientData(projectId, projectName) {
-            document.getElementById('admin-view-client-data').classList.remove('hidden');
-            document.getElementById('view-data-title').innerText = `נתונים של: ${projectName}`;
-            const container = document.getElementById('view-data-table-container');
-            container.innerHTML = "מושך נתונים...";
-
-            const { data, error } = await supabaseClient.from('project_items').select('*').eq('project_id', projectId).order('id', { ascending: false });
+        async function adminViewData(id, name) {
+            const { data } = await supabaseClient.from('project_items').select('*').eq('project_id', id).order('id', { ascending: false });
             
-            if (!data || data.length === 0) { container.innerHTML = "הלקוח עדיין לא הזין נתונים."; return; }
+            if (!data || data.length === 0) return Swal.fire('אין נתונים', 'הלקוח עדיין לא הזין נתונים למערכת.', 'info');
 
-            // בניית טבלה דינמית לפי המפתחות של ה-JSONB בנתון הראשון
             const keys = Object.keys(data[0].item_data);
-            
-            let html = `<table><tr>${keys.map(k => `<th>${k}</th>`).join('')}<th>תאריך הזנה</th></tr>`;
-            data.forEach(row => {
-                html += `<tr>`;
-                keys.forEach(k => { html += `<td>${row.item_data[k] || ''}</td>`; });
-                html += `<td>${new Date(row.created_at).toLocaleDateString('he-IL')}</td></tr>`;
-            });
-            html += `</table>`;
-            container.innerHTML = html;
+            let tableHTML = `
+                <div class="overflow-x-auto mt-4">
+                    <table class="w-full text-right border-collapse">
+                        <thead><tr class="bg-slate-100 text-slate-600 text-sm">${keys.map(k=>`<th class="p-3 border-b">${k}</th>`).join('')}<th class="p-3 border-b">תאריך</th></tr></thead>
+                        <tbody class="text-sm">
+                            ${data.map(row => `<tr class="border-b hover:bg-slate-50">${keys.map(k=>`<td class="p-3 text-slate-700">${row.item_data[k] || ''}</td>`).join('')}<td class="p-3 text-slate-500">${new Date(row.created_at).toLocaleDateString('he-IL')}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+
+            Swal.fire({ title: `נתונים: ${name}`, html: tableHTML, width: '80%', confirmButtonText: 'סגור' });
         }
 
-        // ----------------------------------------------------
-        // 4. פאנל לקוח קצה
-        // ----------------------------------------------------
-        async function clientLoadData(email) {
-            // משיכת הפרויקט של הלקוח
-            const { data, error } = await supabaseClient.from('projects').select('*').eq('client_email', email).limit(1);
+        // ==========================================
+        // מסכי לקוח
+        // ==========================================
+        function buildClientSidebar() {
+            document.getElementById('sidebar-nav').innerHTML = `
+                <button class="w-full text-right px-4 py-3 rounded-lg bg-blue-600 text-white font-medium flex items-center gap-3"><i class="fas fa-chart-pie"></i> הנתונים שלי</button>
+            `;
+        }
+
+        async function renderClientDashboard(email) {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `<div class="flex justify-center items-center h-64"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>`;
+            
+            const { data } = await supabaseClient.from('projects').select('*').eq('client_email', email).limit(1);
             
             if (!data || data.length === 0) {
-                document.getElementById('client-content').innerHTML = "<h3>טרם הוגדר עבורך פרויקט.</h3>";
+                main.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-10 text-center">
+                        <div class="text-6xl text-slate-300 mb-4"><i class="fas fa-folder-open"></i></div>
+                        <h2 class="text-2xl font-bold text-slate-700 mb-2">טרם הוגדר עבורך פרויקט</h2>
+                        <p class="text-slate-500">אם נרשמת עכשיו, פנה למנהל המערכת שיפתח עבורך פרויקט על המייל הזה.</p>
+                    </div>`;
                 return;
             }
 
             currentClientProject = data[0];
-            document.getElementById('client-title').innerText = currentClientProject.project_name;
 
-            // בדיקת סטטוס חסימה
             if (currentClientProject.status === 'blocked') {
-                document.getElementById('client-blocked-msg').classList.remove('hidden');
-                document.getElementById('client-active-section').classList.add('hidden');
+                main.innerHTML = `
+                    <div class="bg-red-50 rounded-xl border border-red-200 p-10 text-center">
+                        <div class="text-6xl text-red-500 mb-4"><i class="fas fa-user-lock"></i></div>
+                        <h2 class="text-2xl font-bold text-red-700 mb-2">החשבון נחסם</h2>
+                        <p class="text-red-600">הגישה למערכת נחסמה על ידי מנהל המערכת.</p>
+                    </div>`;
                 return;
             }
 
-            // פתוח ופעיל
-            document.getElementById('client-blocked-msg').classList.add('hidden');
-            document.getElementById('client-active-section').classList.remove('hidden');
-
-            // בניית טופס דינמי לפי השדות שהאדמין בחר
-            const formContainer = document.getElementById('dynamic-form-container');
-            formContainer.innerHTML = currentClientProject.fields.map(field => `
-                <div class="form-group">
-                    <label>${field}:</label>
-                    <input type="text" id="dyn_${field}" placeholder="הכנס ${field}">
+            // בניית מסך הלקוח
+            main.innerHTML = `
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl"><i class="fas fa-store"></i></div>
+                    <h1 class="text-2xl font-bold text-slate-800">${currentClientProject.project_name}</h1>
                 </div>
-            `).join('');
+                
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+                    <h2 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-keyboard text-slate-400"></i> הזנת רשומה חדשה</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4" id="client-form-fields">
+                        ${currentClientProject.fields.map(f => `
+                            <div>
+                                <label class="block text-sm text-slate-500 mb-1">${f}</label>
+                                <input type="text" id="dyn_${f}" class="w-full p-2 border rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="clientSubmitData()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium shadow transition"><i class="fas fa-check mr-2"></i> שמור רשומה</button>
+                </div>
 
-            // טעינת הטבלה של הנתונים שהלקוח כבר הזין בעבר
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-table text-slate-400"></i> היסטוריית נתונים</h2>
+                    <div id="client-table-container">טוען...</div>
+                </div>
+            `;
             clientLoadTable();
         }
 
         async function clientSubmitData() {
-            const msg = document.getElementById('client-msg');
             let itemData = {};
-            
-            // איסוף מכל השדות הדינמיים
-            currentClientProject.fields.forEach(field => {
-                const val = document.getElementById(`dyn_${field}`).value;
-                itemData[field] = val;
-            });
+            currentClientProject.fields.forEach(f => { itemData[f] = document.getElementById(`dyn_${f}`).value; });
 
-            const { error } = await supabaseClient.from('project_items').insert([{
-                project_id: currentClientProject.id,
-                item_data: itemData
-            }]);
-
-            if (error) { msg.innerText = "שגיאה בשמירה."; msg.style.color = "red"; }
+            const { error } = await supabaseClient.from('project_items').insert([{ project_id: currentClientProject.id, item_data: itemData }]);
+            if (error) { Swal.fire('שגיאה', error.message, 'error'); } 
             else {
-                msg.innerText = "נשמר בהצלחה!"; msg.style.color = "green";
-                // ניקוי שדות
-                currentClientProject.fields.forEach(field => document.getElementById(`dyn_${field}`).value = '');
-                clientLoadTable(); // רענון טבלה
-                setTimeout(() => msg.innerText = "", 3000);
+                Swal.fire({ icon: 'success', title: 'נשמר!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                currentClientProject.fields.forEach(f => document.getElementById(`dyn_${f}`).value = '');
+                clientLoadTable();
             }
         }
 
         async function clientLoadTable() {
             const container = document.getElementById('client-table-container');
-            const { data, error } = await supabaseClient.from('project_items').select('*').eq('project_id', currentClientProject.id).order('id', { ascending: false });
+            const { data } = await supabaseClient.from('project_items').select('*').eq('project_id', currentClientProject.id).order('id', { ascending: false });
             
-            if (!data || data.length === 0) { container.innerHTML = "טרם הוזנו נתונים."; return; }
+            if (!data || data.length === 0) { container.innerHTML = "<p class='text-slate-500'>עדיין לא הזנת נתונים.</p>"; return; }
 
             const keys = currentClientProject.fields;
-            let html = `<table><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr>`;
-            data.forEach(row => {
-                html += `<tr>`;
-                keys.forEach(k => { html += `<td>${row.item_data[k] || ''}</td>`; });
-                html += `</tr>`;
-            });
-            html += `</table>`;
-            container.innerHTML = html;
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead><tr class="bg-slate-50 text-slate-600 text-sm border-b">${keys.map(k=>`<th class="p-3 font-semibold">${k}</th>`).join('')}</tr></thead>
+                        <tbody class="text-sm">
+                            ${data.map(row => `<tr class="border-b hover:bg-slate-50 transition">${keys.map(k=>`<td class="p-3 text-slate-700">${row.item_data[k] || ''}</td>`).join('')}</tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
         }
-
     </script>
 </body>
 </html>
