@@ -95,11 +95,11 @@
         // ==========================================
         // 1. הגדרת חיבור ל-Supabase
         // ==========================================
-        // החלף את הערכים כאן באלו שהעתקת מ-Supabase:
         const SUPABASE_URL = 'https://bagbjuedojksrvohuslb.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_wIbF1331Xf-tjvg1C6TvKg_EvTzEVqh';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // יצירת החיבור עם שם משתנה תקין
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const ADMIN_EMAIL = 'admin@system.com';
 
@@ -112,7 +112,7 @@
             const errorDiv = document.getElementById('login-error');
             errorDiv.innerText = "מתחבר...";
 
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
                 email: email,
                 password: password,
             });
@@ -133,11 +133,9 @@
             document.getElementById('login-screen').style.display = 'none';
 
             if (user.email === ADMIN_EMAIL) {
-                // המשתמש הוא סופר אדמין
                 document.getElementById('admin-dashboard').style.display = 'block';
                 loadAllProjects();
             } else {
-                // המשתמש הוא לקוח
                 document.getElementById('client-dashboard').style.display = 'block';
                 document.getElementById('client-email-display').innerText = user.email;
                 loadClientProjects(user.email);
@@ -158,7 +156,7 @@
                 return;
             }
 
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('projects')
                 .insert([{ project_name: projectName, client_email: clientEmail }]);
 
@@ -178,10 +176,8 @@
         // ==========================================
         // 5. משיכת נתונים ממסד הנתונים
         // ==========================================
-        
-        // לאדמין: מציג את כל הפרויקטים
         async function loadAllProjects() {
-            const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: false });
+            const { data, error } = await supabaseClient.from('projects').select('*').order('id', { ascending: false });
             const listDiv = document.getElementById('all-projects-list');
             
             if (data && data.length > 0) {
@@ -196,12 +192,11 @@
             }
         }
 
-        // ללקוח: מציג רק פרויקטים שקשורים לאימייל שלו
         async function loadClientProjects(email) {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('projects')
                 .select('*')
-                .eq('client_email', email); // סינון לפי אימייל הלקוח
+                .eq('client_email', email);
 
             const listDiv = document.getElementById('client-projects-list');
             
@@ -221,10 +216,9 @@
         // 6. התנתקות
         // ==========================================
         async function logout() {
-            await supabase.auth.signOut();
-            window.location.reload(); // רענון הדף יחזיר למסך ההתחברות
+            await supabaseClient.auth.signOut();
+            window.location.reload(); 
         }
-
     </script>
 </body>
 </html>
