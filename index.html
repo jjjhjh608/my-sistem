@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת ניהול פרויקטים</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1, h2 { color: #1a73e8; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;
+        }
+        button {
+            width: 100%; padding: 10px; background: #1a73e8; color: white; border: none;
+            border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px;
+        }
+        button:hover { background: #1557b0; }
+        .logout-btn { background: #dc3545; margin-top: 20px; }
+        .logout-btn:hover { background: #c82333; }
+        
+        /* הסתרת מסכים כברירת מחדל */
+        #admin-dashboard, #client-dashboard { display: none; }
+        
+        .project-card {
+            background: #f8f9fa; border: 1px solid #e9ecef; padding: 15px;
+            border-radius: 8px; margin-bottom: 10px; text-align: right;
+        }
+        .error { color: red; text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="login-screen">
+        <h1>התחברות למערכת</h1>
+        <div class="form-group">
+            <label>אימייל:</label>
+            <input type="email" id="email" placeholder="הכנס אימייל">
+        </div>
+        <div class="form-group">
+            <label>סיסמה:</label>
+            <input type="password" id="password" placeholder="הכנס סיסמה">
+        </div>
+        <button onclick="login()">כניסה</button>
+        <div id="login-error" class="error"></div>
+    </div>
+
+    <div class="container" id="admin-dashboard">
+        <h2>פאנל ניהול - סופר אדמין</h2>
+        <p>שלום אדמין! כאן תוכל לפתוח פרויקטים חדשים ללקוחות.</p>
+        
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>יצירת פרויקט חדש</h3>
+            <div class="form-group">
+                <input type="text" id="new-project-name" placeholder="שם הפרויקט">
+            </div>
+            <div class="form-group">
+                <input type="email" id="new-client-email" placeholder="אימייל של הלקוח (למשל client@test.com)">
+            </div>
+            <button onclick="createProject()">פתח פרויקט</button>
+            <div id="admin-msg" style="color: green; margin-top: 10px; text-align: center;"></div>
+        </div>
+
+        <h3>כל הפרויקטים במערכת:</h3>
+        <div id="all-projects-list"></div>
+        <button class="logout-btn" onclick="logout()">התנתק</button>
+    </div>
+
+    <div class="container" id="client-dashboard">
+        <h2>האזור האישי שלך</h2>
+        <p>שלום <span id="client-email-display" style="font-weight: bold;"></span>, אלו הפרויקטים שלך:</p>
+        
+        <div id="client-projects-list">
+            טוען נתונים...
+        </div>
+        <button class="logout-btn" onclick="logout()">התנתק</button>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. הגדרת חיבור ל-Supabase
+        // ==========================================
+        // החלף את הערכים כאן באלו שהעתקת מ-Supabase:
+        const SUPABASE_URL = 'https://bagbjuedojksrvohuslb.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_wIbF1331Xf-tjvg1C6TvKg_EvTzEVqh';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const ADMIN_EMAIL = 'admin@system.com';
+
+        // ==========================================
+        // 2. פונקציית התחברות
+        // ==========================================
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.innerText = "מתחבר...";
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                errorDiv.innerText = "שגיאה: אימייל או סיסמה שגויים.";
+                return;
+            }
+
+            errorDiv.innerText = "";
+            checkRole(data.user);
+        }
+
+        // ==========================================
+        // 3. ניתוב משתמשים (אדמין מול לקוח)
+        // ==========================================
+        function checkRole(user) {
+            document.getElementById('login-screen').style.display = 'none';
+
+            if (user.email === ADMIN_EMAIL) {
+                // המשתמש הוא סופר אדמין
+                document.getElementById('admin-dashboard').style.display = 'block';
+                loadAllProjects();
+            } else {
+                // המשתמש הוא לקוח
+                document.getElementById('client-dashboard').style.display = 'block';
+                document.getElementById('client-email-display').innerText = user.email;
+                loadClientProjects(user.email);
+            }
+        }
+
+        // ==========================================
+        // 4. פעולות אדמין - יצירת פרויקט
+        // ==========================================
+        async function createProject() {
+            const projectName = document.getElementById('new-project-name').value;
+            const clientEmail = document.getElementById('new-client-email').value;
+            const msgDiv = document.getElementById('admin-msg');
+
+            if (!projectName || !clientEmail) {
+                msgDiv.style.color = 'red';
+                msgDiv.innerText = "חובה למלא את כל השדות.";
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('projects')
+                .insert([{ project_name: projectName, client_email: clientEmail }]);
+
+            if (error) {
+                msgDiv.style.color = 'red';
+                msgDiv.innerText = "שגיאה ביצירת הפרויקט.";
+                console.error(error);
+            } else {
+                msgDiv.style.color = 'green';
+                msgDiv.innerText = "הפרויקט נפתח בהצלחה!";
+                document.getElementById('new-project-name').value = '';
+                document.getElementById('new-client-email').value = '';
+                loadAllProjects(); // רענון רשימת הפרויקטים
+            }
+        }
+
+        // ==========================================
+        // 5. משיכת נתונים ממסד הנתונים
+        // ==========================================
+        
+        // לאדמין: מציג את כל הפרויקטים
+        async function loadAllProjects() {
+            const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: false });
+            const listDiv = document.getElementById('all-projects-list');
+            
+            if (data && data.length > 0) {
+                listDiv.innerHTML = data.map(p => `
+                    <div class="project-card">
+                        <strong>פרויקט:</strong> ${p.project_name} <br>
+                        <strong>שייך ללקוח:</strong> ${p.client_email}
+                    </div>
+                `).join('');
+            } else {
+                listDiv.innerHTML = "<p>אין פרויקטים במערכת.</p>";
+            }
+        }
+
+        // ללקוח: מציג רק פרויקטים שקשורים לאימייל שלו
+        async function loadClientProjects(email) {
+            const { data, error } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('client_email', email); // סינון לפי אימייל הלקוח
+
+            const listDiv = document.getElementById('client-projects-list');
+            
+            if (data && data.length > 0) {
+                listDiv.innerHTML = data.map(p => `
+                    <div class="project-card">
+                        <h3 style="margin-top:0;">${p.project_name}</h3>
+                        <p>זהו האזור האישי של הפרויקט שלך. כאן תוכל להגדיר דברים בעתיד.</p>
+                    </div>
+                `).join('');
+            } else {
+                listDiv.innerHTML = "<p>עדיין לא נפתחו לך פרויקטים במערכת.</p>";
+            }
+        }
+
+        // ==========================================
+        // 6. התנתקות
+        // ==========================================
+        async function logout() {
+            await supabase.auth.signOut();
+            window.location.reload(); // רענון הדף יחזיר למסך ההתחברות
+        }
+
+    </script>
+</body>
+</html>
